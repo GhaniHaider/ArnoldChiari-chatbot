@@ -1,5 +1,8 @@
+%pip install --quiet --upgrade langchain-text-splitters langchain-community langgraph
 from openai import OpenAI
+!pip install streamlit
 import streamlit as st
+!pip install PyPDF2
 import requests
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
@@ -68,3 +71,4 @@ else:
             st.markdown(response_text)
         
         st.session_state.messages.append({"role": "assistant", "content": response_text})
+
