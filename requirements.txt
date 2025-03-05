@@ -1,2 +1,6 @@
 streamlit
 openai
+requests
+langchain
+faiss-cpu
+PyPDF2
