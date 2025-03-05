@@ -1,56 +1,73 @@
-import streamlit as st
+%pip install --quiet --upgrade langchain-text-splitters langchain-community langgraph
 from openai import OpenAI
+!pip install streamlit
+import streamlit as st
+!pip install PyPDF2
+import requests
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores import FAISS
+from langchain.embeddings import OpenAIEmbeddings
+from PyPDF2 import PdfReader
+import os
 
-# Show title and description.
-st.title("💬 Chatbot")
+# Load and process the textbook
+@st.cache_resource
+def load_textbook():
+    pdf_url = "https://med.mui.ac.ir/sites/med/files/users/jarah-maghz/Handbook%20of%20Neurosurgery%208.pdf"
+    response = requests.get(pdf_url)
+    with open("textbook.pdf", "wb") as f:
+        f.write(response.content)
+    
+    reader = PdfReader("textbook.pdf")
+    text = "".join([page.extract_text() for page in reader.pages if page.extract_text()])
+    
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    texts = text_splitter.split_text(text)
+    
+    embeddings = OpenAIEmbeddings()
+    vector_store = FAISS.from_texts(texts, embeddings)
+    return vector_store
+
+st.title("🩺 AI Health Assistant (RAG-powered)")
 st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
+    "This AI-powered healthcare assistant provides general medical guidance using Retrieval-Augmented Generation (RAG)."
+    "\n⚠️ **Disclaimer:** This is not a substitute for professional medical advice."
 )
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
 openai_api_key = st.text_input("OpenAI API Key", type="password")
 if not openai_api_key:
     st.info("Please add your OpenAI API key to continue.", icon="🗝️")
 else:
-
-    # Create an OpenAI client.
+    os.environ["OPENAI_API_KEY"] = openai_api_key
+    vector_store = load_textbook()
     client = OpenAI(api_key=openai_api_key)
 
-    # Create a session state variable to store the chat messages. This ensures that the
-    # messages persist across reruns.
     if "messages" not in st.session_state:
-        st.session_state.messages = []
+        st.session_state.messages = [{"role": "system", "content": "You are a helpful healthcare assistant providing medical insights based on a neurosurgery textbook. Always advise users to consult a licensed medical professional."}]
 
-    # Display the existing chat messages via `st.chat_message`.
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Create a chat input field to allow the user to enter a message. This will display
-    # automatically at the bottom of the page.
-    if prompt := st.chat_input("What is up?"):
-
-        # Store and display the current prompt.
+    if prompt := st.chat_input("Ask a health-related question..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
 
-        # Generate a response using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+        # Retrieve relevant information from the textbook
+        docs = vector_store.similarity_search(prompt, k=3)
+        retrieved_text = "\n".join([doc.page_content for doc in docs])
+
+        # Generate response with context
+        completion = client.chat.completions.create(
+            model="gpt-4",
             messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
+                {"role": "system", "content": "Use the retrieved textbook information to answer the user's query."},
+                {"role": "user", "content": f"User question: {prompt}\nRelevant textbook info: {retrieved_text}"}
+            ]
         )
 
-        # Stream the response to the chat using `st.write_stream`, then store it in 
-        # session state.
+        response_text = completion.choices[0].message.content
+
         with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+            st.markdown(response_text)
+        
+        st.session_state.messages.append({"role": "assistant", "content": response_text})
