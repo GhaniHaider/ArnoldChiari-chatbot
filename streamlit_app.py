@@ -1,71 +1,113 @@
-from openai import OpenAI
-import streamlit as st
+pip install requests pdfplumber openai
+
 import requests
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
-from langchain.embeddings import OpenAIEmbeddings
-from PyPDF2 import PdfReader
-import os
-
-# Load and process the textbook
-@st.cache_resource
-def load_textbook():
-    pdf_url = "https://med.mui.ac.ir/sites/med/files/users/jarah-maghz/Handbook%20of%20Neurosurgery%208.pdf"
-    response = requests.get(pdf_url)
-    with open("textbook.pdf", "wb") as f:
-        f.write(response.content)
-    
-    reader = PdfReader("textbook.pdf")
-    text = "".join([page.extract_text() for page in reader.pages if page.extract_text()])
-    
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-    texts = text_splitter.split_text(text)
-    
-    embeddings = OpenAIEmbeddings()
-    vector_store = FAISS.from_texts(texts, embeddings)
-    return vector_store
-
-st.title("🩺 AI Health Assistant (RAG-powered)")
-st.write(
-    "This AI-powered healthcare assistant provides general medical guidance using Retrieval-Augmented Generation (RAG)."
-    "\n⚠️ **Disclaimer:** This is not a substitute for professional medical advice."
-)
+import pdfplumber
+import re
+import openai
+from io import BytesIO
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 openai_api_key = st.text_input("OpenAI API Key", type="password")
 if not openai_api_key:
     st.info("Please add your OpenAI API key to continue.", icon="🗝️")
 else:
-    os.environ["OPENAI_API_KEY"] = openai_api_key
-    vector_store = load_textbook()
+
+    # Create an OpenAI client.
     client = OpenAI(api_key=openai_api_key)
 
-    if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "system", "content": "You are a helpful healthcare assistant providing medical insights based on a neurosurgery textbook. Always advise users to consult a licensed medical professional."}]
+# Set up OpenAI API key
+openai.api_key = "openai.api_key"
 
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+# URL of the PDF
+pdf_url = "https://api.pageplace.de/preview/DT0400.9781684205059_A46804179/preview-9781684205059_A46804179.pdf"
 
-    if prompt := st.chat_input("Ask a health-related question..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
+# Download the PDF from the URL and extract text
+def download_and_extract_text(url):
+    try:
+        # Download the PDF
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()  # Raise an error for bad status codes
 
-        # Retrieve relevant information from the textbook
-        docs = vector_store.similarity_search(prompt, k=3)
-        retrieved_text = "\n".join([doc.page_content for doc in docs])
+        # Use BytesIO to handle the PDF in memory
+        with BytesIO(response.content) as pdf_file:
+            with pdfplumber.open(pdf_file) as pdf:
+                text = ""
+                for page in pdf.pages:
+                    text += page.extract_text()
+                return text
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to download the PDF: {e}")
+        return None
+    except Exception as e:
+        print(f"Failed to extract text from PDF: {e}")
+        return None
 
-        # Generate response with context
-        completion = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "Use the retrieved textbook information to answer the user's query."},
-                {"role": "user", "content": f"User question: {prompt}\nRelevant textbook info: {retrieved_text}"}
-            ]
-        )
+# Preprocess the text (split into chunks)
+def preprocess_text(text, chunk_size=500):
+    # Remove extra spaces and newlines
+    text = re.sub(r'\s+', ' ', text)
+    # Split text into chunks
+    chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+    return chunks
 
-        response_text = completion.choices[0].message.content
+# Retrieve the most relevant chunk for a query
+def retrieve_relevant_chunk(chunks, query):
+    # Use TF-IDF vectorizer to convert text into vectors
+    vectorizer = TfidfVectorizer()
+    chunk_vectors = vectorizer.fit_transform(chunks)
+    query_vector = vectorizer.transform([query])
 
-        with st.chat_message("assistant"):
-            st.markdown(response_text)
-        
-        st.session_state.messages.append({"role": "assistant", "content": response_text})
+    # Compute cosine similarity between query and chunks
+    similarities = cosine_similarity(query_vector, chunk_vectors).flatten()
+    most_relevant_index = np.argmax(similarities)
+    return chunks[most_relevant_index]
 
+# Generate a response using OpenAI's GPT
+def generate_response(query, context):
+    # Create a prompt with the context and query
+    prompt = f"Context: {context}\n\nQuestion: {query}\n\nAnswer:"
+    
+    # Use the new OpenAI API format
+    response = openai.chat.completions.create(
+        model="gpt-3.5-turbo",  # Use GPT-3.5-turbo or GPT-4
+        messages=[
+            {"role": "system", "content": "You are a helpful healthcare assistant."},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=150,
+        temperature=0.7
+    )
+    return response.choices[0].message.content
+
+# Chatbot interaction loop
+def chatbot():
+    print("Welcome to the Healthcare Assistant Chatbot!")
+    print("You can ask me questions about neurosurgery, my resource is the Handbook of Neurosurgery.")
+    print("Type 'exit' to quit.")
+
+    # Download and extract text from the PDF
+    text = download_and_extract_text(pdf_url)
+    if not text:
+        print("Chatbot: Unable to download or extract text from the PDF. Exiting.")
+        return
+
+    # Preprocess the text into chunks
+    chunks = preprocess_text(text)
+
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() == "exit":
+            print("Chatbot: Goodbye!")
+            break
+
+        # Retrieve the most relevant chunk
+        relevant_chunk = retrieve_relevant_chunk(chunks, user_input)
+
+        # Generate a response using OpenAI's GPT
+        response = generate_response(user_input, relevant_chunk)
+        print(f"Chatbot: {response}")
+
+# Run the chatbot
+chatbot()
