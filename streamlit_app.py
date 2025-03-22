@@ -1,113 +1,112 @@
-pip install requests pdfplumber openai
-
+import streamlit as st
 import requests
-import pdfplumber
+import json
 import re
-import openai
 from io import BytesIO
+import pdfplumber
+import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
 
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
+# Streamlit Page Configuration
+st.set_page_config(page_title="Neurosurgery Chatbot", page_icon="🏥")
+
+# Title and Description
+st.title("Neurosurgery Chatbot")
+st.write("Ask questions about neurosurgery, based on the Handbook of Neurosurgery.")
+
+# Gemini API Key Input
+gemini_api_key = st.text_input("Enter your Gemini API Key", type="password")
+
+if not gemini_api_key:
+    st.warning("Please enter your Gemini API Key to continue.")
 else:
+    # Gemini API Endpoint
+    GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_api_key}"
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+    # URL of the PDF
+    pdf_url = "https://med.mui.ac.ir/sites/med/files/users/jarah-maghz/Handbook%20of%20Neurosurgery%208.pdf"
 
-# Set up OpenAI API key
-openai.api_key = "openai.api_key"
+    # Download the PDF from the URL and extract text
+    def download_and_extract_text(url):
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            with BytesIO(response.content) as pdf_file:
+                with pdfplumber.open(pdf_file) as pdf:
+                    text = ""
+                    for page in pdf.pages:
+                        text += page.extract_text()
+                    return text
+        except requests.exceptions.RequestException as e:
+            st.error(f"Failed to download the PDF: {e}")
+            return None
+        except Exception as e:
+            st.error(f"Failed to extract text from PDF: {e}")
+            return None
 
-# URL of the PDF
-pdf_url = "https://api.pageplace.de/preview/DT0400.9781684205059_A46804179/preview-9781684205059_A46804179.pdf"
+    # Preprocess the text (split into chunks)
+    def preprocess_text(text, chunk_size=500):
+        text = re.sub(r'\s+', ' ', text)
+        chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+        return chunks
 
-# Download the PDF from the URL and extract text
-def download_and_extract_text(url):
-    try:
-        # Download the PDF
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()  # Raise an error for bad status codes
+    # Retrieve the most relevant chunk for a query
+    def retrieve_relevant_chunk(chunks, query):
+        vectorizer = TfidfVectorizer()
+        chunk_vectors = vectorizer.fit_transform(chunks)
+        query_vector = vectorizer.transform([query])
+        similarities = cosine_similarity(query_vector, chunk_vectors).flatten()
+        most_relevant_index = np.argmax(similarities)
+        return chunks[most_relevant_index]
 
-        # Use BytesIO to handle the PDF in memory
-        with BytesIO(response.content) as pdf_file:
-            with pdfplumber.open(pdf_file) as pdf:
-                text = ""
-                for page in pdf.pages:
-                    text += page.extract_text()
-                return text
-    except requests.exceptions.RequestException as e:
-        print(f"Failed to download the PDF: {e}")
-        return None
-    except Exception as e:
-        print(f"Failed to extract text from PDF: {e}")
-        return None
+    # Generate a response using Gemini
+    def generate_response(query, context):
+        prompt = f"Context: {context}\n\nQuestion: {query}\n\nAnswer:"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        try:
+            response = requests.post(
+                GEMINI_API_URL,
+                headers={"Content-Type": "application/json"},
+                data=json.dumps(payload),
+            )
+            response.raise_for_status()
+            response_data = response.json()
+            if "candidates" in response_data and response_data["candidates"]:
+                return response_data["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                return "Sorry, I couldn't generate a response."
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error with Gemini API: {e}")
+            return "An error occurred while generating the response."
+        except Exception as e:
+            st.error(f"Gemini response error: {e}")
+            return "An unexpected error occurred."
 
-# Preprocess the text (split into chunks)
-def preprocess_text(text, chunk_size=500):
-    # Remove extra spaces and newlines
-    text = re.sub(r'\s+', ' ', text)
-    # Split text into chunks
-    chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
-    return chunks
+    # Chatbot interaction
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-# Retrieve the most relevant chunk for a query
-def retrieve_relevant_chunk(chunks, query):
-    # Use TF-IDF vectorizer to convert text into vectors
-    vectorizer = TfidfVectorizer()
-    chunk_vectors = vectorizer.fit_transform(chunks)
-    query_vector = vectorizer.transform([query])
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-    # Compute cosine similarity between query and chunks
-    similarities = cosine_similarity(query_vector, chunk_vectors).flatten()
-    most_relevant_index = np.argmax(similarities)
-    return chunks[most_relevant_index]
+    user_input = st.chat_input("Ask a question about neurosurgery...")
 
-# Generate a response using OpenAI's GPT
-def generate_response(query, context):
-    # Create a prompt with the context and query
-    prompt = f"Context: {context}\n\nQuestion: {query}\n\nAnswer:"
-    
-    # Use the new OpenAI API format
-    response = openai.chat.completions.create(
-        model="gpt-3.5-turbo",  # Use GPT-3.5-turbo or GPT-4
-        messages=[
-            {"role": "system", "content": "You are a helpful healthcare assistant."},
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=150,
-        temperature=0.7
-    )
-    return response.choices[0].message.content
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with st.chat_message("user"):
+            st.markdown(user_input)
 
-# Chatbot interaction loop
-def chatbot():
-    print("Welcome to the Healthcare Assistant Chatbot!")
-    print("You can ask me questions about neurosurgery, my resource is the Handbook of Neurosurgery.")
-    print("Type 'exit' to quit.")
-
-    # Download and extract text from the PDF
-    text = download_and_extract_text(pdf_url)
-    if not text:
-        print("Chatbot: Unable to download or extract text from the PDF. Exiting.")
-        return
-
-    # Preprocess the text into chunks
-    chunks = preprocess_text(text)
-
-    while True:
-        user_input = input("You: ")
-        if user_input.lower() == "exit":
-            print("Chatbot: Goodbye!")
-            break
-
-        # Retrieve the most relevant chunk
-        relevant_chunk = retrieve_relevant_chunk(chunks, user_input)
-
-        # Generate a response using OpenAI's GPT
-        response = generate_response(user_input, relevant_chunk)
-        print(f"Chatbot: {response}")
-
-# Run the chatbot
-chatbot()
+        text = download_and_extract_text(pdf_url)
+        if text:
+            chunks = preprocess_text(text)
+            relevant_chunk = retrieve_relevant_chunk(chunks, user_input)
+            gemini_response = generate_response(user_input, relevant_chunk)
+            st.session_state.messages.append({"role": "assistant", "content": gemini_response})
+            with st.chat_message("assistant"):
+                st.markdown(gemini_response)
+        else:
+            st.error("Unable to process PDF content.")
