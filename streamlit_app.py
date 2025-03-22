@@ -1,3 +1,5 @@
+!pip install pdfplumber
+
 import torch
 from transformers import RagTokenizer, RagRetriever, RagTokenForGeneration
 import fitz  # PyMuPDF
