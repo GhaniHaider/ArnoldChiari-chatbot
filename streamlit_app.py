@@ -3,10 +3,24 @@ import requests
 import json
 import re
 from io import BytesIO
-import pdfplumber
+import subprocess
+import sys
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+# Install pdfplumber if not present
+try:
+    import pdfplumber
+except ModuleNotFoundError:
+    st.warning("pdfplumber not found. Attempting installation...")
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "pdfplumber"])
+        import pdfplumber
+        st.success("pdfplumber successfully installed.")
+    except subprocess.CalledProcessError as e:
+        st.error(f"Failed to install pdfplumber: {e}")
+        st.stop()
 
 # Streamlit Page Configuration
 st.set_page_config(page_title="Neurosurgery Chatbot", page_icon="🏥")
@@ -25,7 +39,7 @@ else:
     GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_api_key}"
 
     # URL of the PDF
-    pdf_url = "https://med.mui.ac.ir/sites/med/files/users/jarah-maghz/Handbook%20of%20Neurosurgery%208.pdf"
+    pdf_url = "https://api.pageplace.de/preview/DT0400.9781684205059_A46804179/preview-9781684205059_A46804179.pdf"
 
     # Download the PDF from the URL and extract text
     def download_and_extract_text(url):
