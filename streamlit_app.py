@@ -19,7 +19,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Custom CSS
+# Custom CSS with improved contrast
 st.markdown("""
 <style>
     .main {
@@ -34,6 +34,8 @@ st.markdown("""
         border-radius: 10px;
         margin-bottom: 10px;
         border-left: 5px solid #4e8cff;
+        color: #000000 !important; /* Ensuring dark text color */
+        font-weight: 400;
     }
     .user {
         background-color: #f0f0f0;
@@ -41,6 +43,13 @@ st.markdown("""
         border-radius: 10px;
         margin-bottom: 10px;
         border-left: 5px solid #a0a0a0;
+        color: #000000 !important; /* Ensuring dark text color */
+        font-weight: 400;
+    }
+    /* Additional styling to ensure text is visible */
+    .neurosurgeon p, .user p {
+        color: #000000 !important;
+        opacity: 1 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -170,7 +179,7 @@ def main():
             st.success("API key is configured.")
             if st.button("Reset API Key"):
                 st.session_state.gemini_api_key = ""
-                st.experimental_rerun()
+                st.rerun()  # Updated from experimental_rerun
         
         # PDF upload
         if st.session_state.gemini_api_key and not st.session_state.pdf_processed:
@@ -250,8 +259,7 @@ def main():
             # Add assistant message to chat history for display
             st.session_state.chat_history.append({"role": "assistant", "content": answer})
             
-            # Rerun to update display (optional, can be commented out if causing issues)
-            st.experimental_rerun()
+            # Removed the experimental_rerun() call that was causing issues
     else:
         # Instructions when not yet configured
         if not st.session_state.gemini_api_key:
