@@ -1,19 +1,16 @@
-# 💬 Chatbot template
+🧠 Arnold Chiari Chatbot: A simple Streamlit-based chatbot that provides information related to Arnold Chiari Malformation using RAG and Gemini API.
 
-A simple Streamlit app that shows how to build a chatbot using OpenAI's GPT-3.5.
+🚀 How to Run It Locally
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://chatbot-template.streamlit.app/)
+Install Dependencies Make sure you have Python installed, then install the required packages:
+pip install -r requirements.txt
 
-### How to run it on your own machine
+Run the App using this link: https://arnoldchiari-chatbot-zlgktcnjxewveptepgzc8a.streamlit.app/
+🏥 Features of Arnold Chiari Chatbot: 
+Provides responses to queries related to Arnold Chiari Malformation. 
+Utilizes RAG, based on book chapter on Arnold Chiair Malformation. 
+Uses Gemini API to generate medical responses. 
+Recognizes a range of medical terms. 
+Has the persona of a consulting physician. 
 
-1. Install the requirements
-
-   ```
-   $ pip install -r requirements.txt
-   ```
-
-2. Run the app
-
-   ```
-   $ streamlit run streamlit_app.py
-   ```
+🔑 Usage Enter your Gemini API Key when prompted. API_key: "AIzaSyDXFintt_4qMGsShYLorvtoYkvsbdwlO2c" Ask a question related to Arnold Chiari Malformation (e.g., "What are the symptoms of Arnold Chiari Malformation?"). Receive an AI-generated response based on the Gemini API.
