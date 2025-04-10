@@ -14,4 +14,7 @@ Uses Gemini API to generate medical responses.
 Recognizes a range of medical terms. 
 Has the persona of a consulting physician. 
 
-🔑 Usage Enter your Gemini API Key when prompted. API_key: "AIzaSyDXFintt_4qMGsShYLorvtoYkvsbdwlO2c" Ask a question related to Arnold Chiari Malformation (e.g., "What are the symptoms of Arnold Chiari Malformation?"). Receive an AI-generated response based on the Gemini API.
+🔑 Usage Enter your Gemini API Key when prompted. API_key: "AIzaSyDXFintt_4qMGsShYLorvtoYkvsbdwlO2c" 
+Upload the file "Chiari.pdf" when prompted - file is uploaded on this github page. 
+Ask a question related to Arnold Chiari Malformation (e.g., "What are the symptoms of Arnold Chiari Malformation?"). 
+Receive an AI-generated response based on the Gemini API.
