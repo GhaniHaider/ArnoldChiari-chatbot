@@ -14,7 +14,7 @@ from langchain.memory import ConversationSummaryBufferMemory
 
 # Page configuration
 st.set_page_config(
-    page_title="Neurosurgeon Chiari Consultant",
+    page_title="Arnold Chiari Malformation - Consultant",
     page_icon="🧠",
     layout="centered"
 )
@@ -200,7 +200,7 @@ def estimate_tokens(text):
     return len(text) // 4
 
 def main():
-    st.title("🧠 Neurosurgeon Chiari Malformation Consultant")
+    st.title("🧠 Arnold Chiari Malformation Consultant")
     
     # Sidebar for API key and file upload
     with st.sidebar:
@@ -256,7 +256,7 @@ def main():
         # Information section
         st.subheader("About")
         st.markdown("""
-        This chatbot is powered by a neurosurgeon AI specializing in Chiari malformation.
+        This chatbot is powered by a AI consultant specializing in Arnold Chiari malformation.
         
         Ask questions about:
         - Chiari malformation types and causes
@@ -271,7 +271,7 @@ def main():
         if not st.session_state.chat_history:
             st.markdown(
                 """<div class="neurosurgeon">
-                <p>Hello, I'm a neurosurgeon specializing in Chiari malformations. I'm here to answer your questions about this condition and provide the guidance you need. How can I help you today?</p>
+                <p>Hello, I'm a neurosurgeon specializing in Arnold Chiari malformations. I'm here to answer your questions about this condition and provide the guidance you need. How can I help you today?</p>
                 </div>""", 
                 unsafe_allow_html=True
             )
