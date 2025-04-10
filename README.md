@@ -6,6 +6,7 @@ Install Dependencies Make sure you have Python installed, then install the requi
 pip install -r requirements.txt
 
 Run the App using this link: https://arnoldchiari-chatbot-zlgktcnjxewveptepgzc8a.streamlit.app/
+
 🏥 Features of Arnold Chiari Chatbot: 
 Provides responses to queries related to Arnold Chiari Malformation. 
 Utilizes RAG, based on book chapter on Arnold Chiair Malformation. 
