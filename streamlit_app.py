@@ -163,9 +163,27 @@ def process_pdf(pdf_file):
 def get_formatted_chat_history(chat_history):
     """Format chat history for better context retention"""
     formatted_history = ""
-    for i, message in enumerate(chat_history[-6:]):  # Only use the most recent 6 messages
-        role = "Patient" if message["role"] == "user" else "Neurosurgeon"
-        formatted_history += f"{role}: {message['content']}\n\n"
+    
+    for exchange in enumerate(chat_history[-6:]):  # Only use the most recent 6 messages
+        # Handle different formats of chat history
+        if hasattr(exchange, 'type') and hasattr(exchange, 'content'):
+            # Handle LangChain message objects
+            role = "Patient" if exchange.type == "human" else "Neurosurgeon"
+            formatted_history += f"{role}: {exchange.content}\n\n"
+        elif isinstance(exchange, tuple) and len(exchange) == 2:
+            # Handle (human_message, ai_message) tuples
+            formatted_history += f"Patient: {exchange[0]}\n\nNeurosurgeon: {exchange[1]}\n\n"
+        elif isinstance(exchange, dict) and "role" in exchange:
+            # Handle dictionary format with role key
+            role = "Patient" if exchange["role"] == "user" else "Neurosurgeon"
+            formatted_history += f"{role}: {exchange['content']}\n\n"
+        elif isinstance(exchange, dict) and "content" in exchange:
+            # Handle dictionary format without role but with content
+            formatted_history += f"Message: {exchange['content']}\n\n"
+        else:
+            # Fallback handling for any other format
+            formatted_history += f"Message: {str(exchange)}\n\n"
+    
     return formatted_history
 
 def create_conversation_chain(vectorstore):
@@ -190,7 +208,7 @@ def create_conversation_chain(vectorstore):
         combine_docs_chain_kwargs={"prompt": PROMPT},
         return_source_documents=True,  # Helpful for debugging
         get_chat_history=get_formatted_chat_history,
-        verbose=True  # Helpful for debugging
+        verbose=False
     )
     
     return conversation_chain
@@ -217,7 +235,7 @@ def main():
                     st.session_state.gemini_api_key = api_key
                     st.success("API key configured successfully!")
                 except Exception as e:
-                    st.error(f"Error configuring API key: {e}")
+                    st.error(f"Error configuring API key: {str(e)}")
         else:
             st.success("API key is configured.")
             if st.button("Reset API Key"):
@@ -238,9 +256,9 @@ def main():
                         st.session_state.pdf_processed = True
                         st.success("PDF processed successfully!")
                     except Exception as e:
-                        st.error(f"Error processing PDF: {e}")
+                        st.error(f"Error processing PDF: {str(e)}")
         
-        # Debug information
+        # Conversation stats and reset button
         if st.session_state.pdf_processed:
             st.subheader("Conversation Stats")
             st.text(f"Approx. token count: {st.session_state.token_count}")
@@ -300,23 +318,26 @@ def main():
             enhanced_question = preprocess_query(user_question, st.session_state.chat_history)
             
             with st.spinner("Thinking..."):
-                if check_if_domain_relevant(enhanced_question):
-                    # Get response from the conversation chain
-                    response = st.session_state.conversation_chain({"question": enhanced_question})
-                    answer = response['answer']
-                    
-                    # Track token usage (approximate)
-                    st.session_state.token_count += estimate_tokens(answer)
-                else:
-                    # Off-topic response
-                    answer = "I'm sorry, but I specialize specifically in Chiari malformation and related neurological conditions. To provide you with the most helpful information, could you please ask me about topics related to Chiari, brain structure, spinal issues, or neurological symptoms? I want to ensure I give you accurate and relevant guidance."
-                    
-                    # We should also update the memory for continuity
-                    if hasattr(st.session_state.conversation_chain, 'memory'):
-                        st.session_state.conversation_chain.memory.save_context(
-                            {"question": enhanced_question}, 
-                            {"answer": answer}
-                        )
+                try:
+                    if check_if_domain_relevant(enhanced_question):
+                        # Get response from the conversation chain
+                        response = st.session_state.conversation_chain({"question": enhanced_question})
+                        answer = response['answer']
+                        
+                        # Track token usage (approximate)
+                        st.session_state.token_count += estimate_tokens(answer)
+                    else:
+                        # Off-topic response
+                        answer = "I'm sorry, but I specialize specifically in Chiari malformation and related neurological conditions. To provide you with the most helpful information, could you please ask me about topics related to Chiari, brain structure, spinal issues, or neurological symptoms? I want to ensure I give you accurate and relevant guidance."
+                        
+                        # We should also update the memory for continuity
+                        if hasattr(st.session_state.conversation_chain, 'memory'):
+                            st.session_state.conversation_chain.memory.save_context(
+                                {"question": enhanced_question}, 
+                                {"answer": answer}
+                            )
+                except Exception:
+                    answer = "I apologize, but I encountered an error while processing your question. Please try rephrasing or asking a different question. If the problem persists, you may need to reset the conversation."
             
             # Display assistant response
             st.markdown(f"""<div class="neurosurgeon"><p>{answer}</p></div>""", unsafe_allow_html=True)
