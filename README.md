@@ -5,7 +5,7 @@
 Install Dependencies Make sure you have Python installed, then install the required packages:
 pip install -r requirements.txt
 
-Run the App using this link: https://chatbot-jufsknek6cagkpyrjxjyz9.streamlit.app
+Run the App using this link: https://arnoldchiari-chatbot-zr2njfi5p7qylapq95emqu.streamlit.app/
 
 🏥 Features of Arnold Chiari Chatbot: 
 Provides responses to queries related to Arnold Chiari Malformation. 
