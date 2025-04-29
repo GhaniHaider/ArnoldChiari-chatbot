@@ -9,7 +9,7 @@ Run the App using this link: https://arnoldchiari-chatbot-zr2njfi5p7qylapq95emqu
 
 🏥 Features of Arnold Chiari Chatbot: 
 Provides responses to queries related to Arnold Chiari Malformation. 
-Utilizes RAG, based on book chapter on Arnold Chiair Malformation. 
+Utilizes RAG, based on book chapter on Arnold Chiari Malformation. 
 Uses Gemini API to generate medical responses. 
 Recognizes a range of medical terms. 
 Has the persona of a consulting physician. 
