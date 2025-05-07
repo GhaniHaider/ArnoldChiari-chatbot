@@ -14,7 +14,7 @@ Uses Gemini API to generate medical responses.
 Recognizes a range of medical terms. 
 Has the persona of a consulting physician. 
 
-🔑 Usage Enter your Gemini API Key when prompted. API_key: "AIzaSyAhUHN6XnEYeNx9g8QqsKKWKjtrc1tSnRA" 
+🔑 Usage Enter your Gemini API Key when prompted. API_key: "AIzaSyDM8FGAwoqZg4MGp7APIogbTw-Ci5nvgNQ" 
 
 Upload the file "Chiari.pdf" when prompted - file is uploaded on this github page. 
 
